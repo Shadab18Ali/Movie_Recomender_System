@@ -2,5 +2,9 @@
 *.csv
 *.ipynb
 model/
-requirements.txt
+tests/
+scripts/
+node_modules/
+requirements*.txt
 README.md
+web/js/package.json

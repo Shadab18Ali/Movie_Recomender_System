@@ -1,0 +1,12 @@
+{
+  "name": "Double Feature — Movie Recommendation System",
+  "short_name": "Double Feature",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e0d0b",
+  "theme_color": "#0e0d0b",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
