@@ -1,7 +1,8 @@
 'use strict';
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 40;
 const MIN_VOTES_FOR_TOP_RATED = 300;
+const SUGGESTED = ['Frozen', 'The Dark Knight', 'Amélie', 'Se7en', 'Spirited Away', 'Before Sunrise'];
 
 const state = {
   movies: [],
@@ -11,8 +12,6 @@ const state = {
 };
 
 const app = document.getElementById('app');
-const searchInput = document.getElementById('search');
-const suggestionsEl = document.getElementById('suggestions');
 
 // ---------- helpers ----------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -22,9 +21,11 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
 const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-const hue = (id) => (id * 47) % 360;
+const pad = (n) => String(n).padStart(2, '0');
 
-const fmtRuntime = (min) => (min ? `${Math.floor(min / 60)}h ${min % 60}m` : null);
+const fmtRuntime = (min) => (min ? `${min} min` : null);
+
+const byTitle = (title) => state.movies.find((m) => m.title === title);
 
 // ---------- posters (optional, via /api/poster + TMDB) ----------
 const posterCache = new Map();
@@ -59,7 +60,7 @@ function fetchImages(id) {
     })
     .catch(() => null)
     .then((data) => {
-      const value = data && (data.poster || data.backdrop) ? data : null;
+      const value = data && data.poster ? data : null;
       posterCache.set(id, value);
       if (value) savePosterCache();
       return value;
@@ -79,8 +80,7 @@ const observer = 'IntersectionObserver' in window
   : null;
 
 function loadPoster(el) {
-  const id = Number(el.dataset.id);
-  Promise.resolve(fetchImages(id)).then((img) => {
+  Promise.resolve(fetchImages(Number(el.dataset.id))).then((img) => {
     if (!img || !img.poster) return;
     const image = new Image();
     image.alt = '';
@@ -92,34 +92,49 @@ function loadPoster(el) {
 }
 
 function observePosters(root) {
-  root.querySelectorAll('.poster[data-id]').forEach((el) => {
+  root.querySelectorAll('.card[data-id]').forEach((el) => {
     if (observer) observer.observe(el); else loadPoster(el);
   });
 }
 
-// ---------- rendering ----------
-function posterHTML(m, badge = true) {
-  return `
-    <div class="poster" data-id="${m.id}" style="--h:${hue(m.id)}">
-      ${badge && m.votes ? `<span class="badge"><span class="star">★</span> ${m.rating.toFixed(1)}</span>` : ''}
-      <div class="poster-fallback">${esc(m.title)}${m.year ? `<small>${m.year}</small>` : ''}</div>
+// ---------- building blocks ----------
+// A typographic title card, replaced by the real poster when one is available.
+function cardHTML(m, { thumb = false } = {}) {
+  if (thumb) {
+    return `<div class="card card--thumb" data-id="${m.id}" aria-hidden="true">
+      <div class="card-face"><span class="t">${esc(m.title.replace(/^(the|a|an) /i, '').charAt(0))}</span></div>
     </div>`;
+  }
+  return `<div class="card" data-id="${m.id}" aria-hidden="true">
+    <div class="card-face">
+      ${m.director.length ? `<span class="d">${esc(m.director[0])}</span>` : ''}
+      <span class="t">${esc(m.title)}</span>
+      ${m.year ? `<span class="y">${m.year}</span>` : ''}
+    </div>
+  </div>`;
 }
 
-function cardHTML(m, score) {
-  const meta = [
-    m.year ? `<span>${m.year}</span>` : '',
-    score != null ? `<span class="match">${Math.round(score * 100)}% match</span>`
-      : (m.genres[0] ? `<span>${esc(m.genres[0])}</span>` : ''),
-  ].join('');
-  return `
-    <a class="card" href="#/movie/${m.id}" title="${esc(m.title)}">
-      ${posterHTML(m)}
-      <div class="card-title">${esc(m.title)}</div>
-      <div class="card-meta">${meta}</div>
-    </a>`;
+function subline(m) {
+  return [m.year, m.genres.slice(0, 2).join(', ')].filter(Boolean).map(esc).join(' · ');
 }
 
+function rowHTML(m, n) {
+  return `<li><a href="#/movie/${m.id}">
+    <span class="r-no">${pad(n)}</span>
+    ${cardHTML(m, { thumb: true })}
+    <span><span class="r-title">${esc(m.title)}</span><span class="r-sub">${subline(m)}</span></span>
+    <span class="r-rating" title="TMDB rating">${m.votes ? `<i>★</i>${m.rating.toFixed(1)}` : '—'}</span>
+  </a></li>`;
+}
+
+function simHTML(score, max) {
+  const pct = Math.max(4, Math.round((score / max) * 100));
+  return `<span class="sim mono" title="Cosine similarity ${score.toFixed(2)}">
+    <span class="sim-bar"><i style="width:${pct}%"></i></span>${score.toFixed(2)}
+  </span>`;
+}
+
+// ---------- home ----------
 function homeList() {
   const { genre, sort } = state.home;
   let list = genre === 'All' ? state.movies : state.movies.filter((m) => m.genres.includes(genre));
@@ -134,133 +149,164 @@ function homeList() {
   return list;
 }
 
-function renderHome() {
-  document.title = 'CineMatch — Movie Recommender';
+let heroSearch;
+
+function renderHome({ keepHero = false } = {}) {
+  document.body.classList.add('is-home');
+  document.title = 'Double Feature';
   const { genre, sort, shown } = state.home;
   const list = homeList();
-  const sorts = [['popular', 'Popular'], ['top', 'Top rated'], ['new', 'Newest']];
+  const sorts = [['popular', 'Most popular'], ['top', 'Highest rated'], ['new', 'Newest']];
 
-  app.innerHTML = `
-    <section class="intro">
-      <h1>Pick a movie you love.<br><span>We'll find what to watch next.</span></h1>
-      <p>Search above or choose any title below. Recommendations compare plot, genres, keywords,
-         cast and director across ${state.movies.length.toLocaleString()} movies.</p>
-    </section>
-
-    <div class="chips" role="group" aria-label="Filter by genre">
-      ${['All', ...state.genres].map((g) => `
-        <button class="chip" data-genre="${esc(g)}" aria-pressed="${g === genre}">${esc(g)}</button>`).join('')}
-    </div>
-
-    <div class="section-head">
-      <h2>${genre === 'All' ? 'Browse' : esc(genre)} <span class="hint">· ${list.length.toLocaleString()} movies</span></h2>
-      <div class="sort" role="group" aria-label="Sort">
-        ${sorts.map(([k, label]) => `
-          <button class="chip" data-sort="${k}" aria-pressed="${k === sort}">${label}</button>`).join('')}
+  const indexHTML = `
+    <div class="index-head">
+      <h2>${genre === 'All' ? 'The index' : esc(genre)}<small>${list.length.toLocaleString()} films</small></h2>
+      <div class="toggles" role="group" aria-label="Sort">
+        ${sorts.map(([k, label]) => `<button data-sort="${k}" aria-pressed="${k === sort}">${label}</button>`).join('')}
       </div>
     </div>
-
-    <div class="grid">${list.slice(0, shown).map((m) => cardHTML(m)).join('')}</div>
-    ${list.length > shown ? '<div class="more-wrap"><button class="btn" id="more">Show more</button></div>' : ''}
+    <div class="genres toggles" role="group" aria-label="Filter by genre">
+      ${['All', ...state.genres].map((g) => `<button data-genre="${esc(g)}" aria-pressed="${g === genre}">${esc(g)}</button>`).join('')}
+    </div>
+    <ol class="ledger">${list.slice(0, shown).map((m, i) => rowHTML(m, i + 1)).join('')}</ol>
+    ${list.length > shown ? `<button class="more" id="more">Show the next ${Math.min(PAGE_SIZE, list.length - shown)}</button>` : ''}
   `;
 
-  app.querySelectorAll('[data-genre]').forEach((b) => b.addEventListener('click', () => {
+  if (keepHero && document.getElementById('index')) {
+    document.getElementById('index').innerHTML = indexHTML;
+  } else {
+    const picks = SUGGESTED.map(byTitle).filter(Boolean);
+    app.innerHTML = `
+      <section class="hero">
+        <p class="kicker">${state.movies.length.toLocaleString()} films · TMDB 5000</p>
+        <h1>Name a film you <em>love</em>.</h1>
+        <p class="lede">You'll get the twelve films closest to it in story, genre, keywords, cast and director.</p>
+        <div class="search search--hero" role="search">
+          <input id="search-hero" type="search" placeholder="Start typing a title" autocomplete="off" aria-label="Search films"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggestions-hero">
+          <ul id="suggestions-hero" class="suggestions" role="listbox" hidden></ul>
+        </div>
+        <p class="try"><span class="mono">Or try&nbsp;&nbsp;</span>${picks.map((m) => `<a href="#/movie/${m.id}">${esc(m.title)}</a>`).join('')}</p>
+      </section>
+      <section id="index">${indexHTML}</section>
+    `;
+    heroSearch = attachSearch(document.getElementById('search-hero'), document.getElementById('suggestions-hero'));
+  }
+
+  const index = document.getElementById('index');
+  index.querySelectorAll('[data-genre]').forEach((b) => b.addEventListener('click', () => {
     const g = b.dataset.genre;
     state.home.genre = g;
     state.home.shown = PAGE_SIZE;
     history.replaceState(null, '', g === 'All' ? '#/' : `#/genre/${encodeURIComponent(g)}`);
-    renderHome();
+    renderHome({ keepHero: true });
   }));
-  app.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
+  index.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
     state.home.sort = b.dataset.sort;
     state.home.shown = PAGE_SIZE;
-    renderHome();
+    renderHome({ keepHero: true });
   }));
   const more = document.getElementById('more');
   if (more) more.addEventListener('click', () => {
-    const y = window.scrollY;
     state.home.shown += PAGE_SIZE;
-    renderHome();
-    window.scrollTo(0, y);
+    renderHome({ keepHero: true });
   });
-  observePosters(app);
+  observePosters(index);
 }
 
+// ---------- film page ----------
 function renderMovie(id) {
+  document.body.classList.remove('is-home');
   const m = state.byId.get(id);
   if (!m) {
-    app.innerHTML = '<div class="error">Movie not found. <a class="back" href="#/">← Back to browse</a></div>';
+    document.title = 'Not found · Double Feature';
+    app.innerHTML = `<div class="notfound"><h1>That film isn't in the index.</h1>
+      <p><a href="#/">Back to the index</a></p></div>`;
     return;
   }
-  document.title = `${m.title}${m.year ? ` (${m.year})` : ''} — CineMatch`;
+  document.title = `${m.title}${m.year ? ` (${m.year})` : ''} · Double Feature`;
+
   const facts = [
-    m.votes ? `<span class="rating"><span class="star">★</span> ${m.rating.toFixed(1)} <span style="color:var(--text-dim);font-weight:400">(${m.votes.toLocaleString()})</span></span>` : '',
-    m.year ? `<span>${m.year}</span>` : '',
-    fmtRuntime(m.runtime) ? `<span>${fmtRuntime(m.runtime)}</span>` : '',
-  ].filter(Boolean).join('');
-  const people = [
-    m.director.length ? `<dt>Director</dt><dd>${esc(m.director.join(', '))}</dd>` : '',
+    m.year,
+    fmtRuntime(m.runtime),
+    m.votes ? `<span class="rating">★ ${m.rating.toFixed(1)}</span> <span>(${m.votes.toLocaleString()} votes)</span>` : null,
+  ].filter(Boolean).map((f) => `<span>${f}</span>`).join('');
+
+  const credits = [
+    m.director.length ? `<dt>Directed by</dt><dd>${esc(m.director.join(', '))}</dd>` : '',
     m.cast.length ? `<dt>Starring</dt><dd>${esc(m.cast.join(', '))}</dd>` : '',
+    m.genres.length ? `<dt>Genre</dt><dd class="genre-links">${m.genres.map((g) => `<a href="#/genre/${encodeURIComponent(g)}">${esc(g)}</a>`).join(', ')}</dd>` : '',
   ].join('');
 
+  const recs = m.recs.map(([idx, score]) => [state.movies[idx], score]);
+  const [best, bestScore] = recs[0];
+  const max = bestScore || 1;
+  const crumbGenre = m.genres[0];
+
   app.innerHTML = `
-    <a class="back" href="#/">← Browse all movies</a>
-    <article class="hero">
-      <div class="hero-backdrop" aria-hidden="true"></div>
-      <div class="hero-inner">
-        ${posterHTML(m, false)}
-        <div>
-          <h1>${esc(m.title)}</h1>
-          <div class="facts">${facts}</div>
-          <div class="genre-tags">${m.genres.map((g) => `<a href="#/genre/${encodeURIComponent(g)}">${esc(g)}</a>`).join('')}</div>
-          ${m.overview ? `<p class="overview">${esc(m.overview)}</p>` : ''}
-          ${people ? `<dl class="people">${people}</dl>` : ''}
-        </div>
+    <nav class="crumbs mono" aria-label="Breadcrumb">
+      <a href="#/">Index</a>${crumbGenre ? `<span>/</span><a href="#/genre/${encodeURIComponent(crumbGenre)}">${esc(crumbGenre)}</a>` : ''}
+    </nav>
+
+    <article class="film">
+      ${cardHTML(m)}
+      <div>
+        <h1>${esc(m.title)}</h1>
+        <div class="facts mono">${facts}</div>
+        ${m.overview ? `<p class="overview">${esc(m.overview)}</p>` : ''}
+        ${credits ? `<dl class="credits">${credits}</dl>` : ''}
       </div>
     </article>
 
-    <div class="section-head">
-      <h2>Because you like ${esc(m.title)}</h2>
-      <span class="hint">Most similar movies</span>
-    </div>
-    <div class="grid">
-      ${m.recs.map(([idx, score]) => cardHTML(state.movies[idx], score)).join('')}
-    </div>
-  `;
+    <section class="bill">
+      <h2>Make it a double feature</h2>
+      <p class="note">The closest match to <em>${esc(m.title)}</em>, then the next eleven.</p>
 
-  Promise.resolve(fetchImages(m.id)).then((img) => {
-    const bd = app.querySelector('.hero-backdrop');
-    if (!img || !img.backdrop || !bd) return;
-    const pre = new Image();
-    pre.onload = () => { bd.style.backgroundImage = `url("${img.backdrop}")`; bd.classList.add('loaded'); };
-    pre.src = img.backdrop;
-  });
+      <div class="pick">
+        <a href="#/movie/${best.id}" tabindex="-1">${cardHTML(best)}</a>
+        <div>
+          ${simHTML(bestScore, max)}
+          <h3><a href="#/movie/${best.id}">${esc(best.title)}</a></h3>
+          <p>${esc(best.overview)}</p>
+          <a class="go" href="#/movie/${best.id}">${best.year ? `${best.year} · ` : ''}See this film</a>
+        </div>
+      </div>
+
+      <ol class="ledger ledger--recs">
+        ${recs.slice(1).map(([r, score], i) => `<li><a href="#/movie/${r.id}">
+          <span class="r-no">${pad(i + 2)}</span>
+          ${cardHTML(r, { thumb: true })}
+          <span><span class="r-title">${esc(r.title)}</span><span class="r-sub">${subline(r)}</span></span>
+          ${simHTML(score, max)}
+        </a></li>`).join('')}
+      </ol>
+    </section>
+  `;
   observePosters(app);
 }
 
 // ---------- routing ----------
 function route() {
-  closeSuggestions();
+  topSearch.close();
   const hash = location.hash.replace(/^#/, '');
   const movie = hash.match(/^\/movie\/(\d+)/);
   const genre = hash.match(/^\/genre\/(.+)/);
   if (movie) {
     renderMovie(Number(movie[1]));
-  } else {
-    const g = genre ? decodeURIComponent(genre[1]) : 'All';
-    if (g !== state.home.genre && (g === 'All' || state.genres.includes(g))) {
-      state.home.genre = g;
-      state.home.shown = PAGE_SIZE;
-    }
-    renderHome();
+    window.scrollTo(0, 0);
+    return;
   }
-  window.scrollTo(0, 0);
+  const g = genre ? decodeURIComponent(genre[1]) : 'All';
+  if (g !== state.home.genre && (g === 'All' || state.genres.includes(g))) {
+    state.home.genre = g;
+    state.home.shown = PAGE_SIZE;
+  }
+  renderHome();
+  if (genre) document.getElementById('index').scrollIntoView();
+  else window.scrollTo(0, 0);
 }
 
 // ---------- search ----------
-let activeIndex = -1;
-let currentResults = [];
-
 function search(query) {
   const q = normalize(query);
   if (!q) return [];
@@ -286,82 +332,96 @@ function highlight(title, query) {
   return `${esc(title.slice(0, i))}<mark>${esc(title.slice(i, i + q.length))}</mark>${esc(title.slice(i + q.length))}`;
 }
 
-function renderSuggestions() {
-  const query = searchInput.value;
-  currentResults = search(query);
-  activeIndex = currentResults.length ? 0 : -1;
-  if (!query.trim()) { closeSuggestions(); return; }
-  suggestionsEl.innerHTML = currentResults.length
-    ? currentResults.map((m, i) => `
-        <li id="sugg-${i}" role="option" data-id="${m.id}" aria-selected="${i === activeIndex}">
-          <span>${highlight(m.title, query)}</span>
-          <span class="s-meta">${m.year || ''}${m.genres[0] ? ` · ${esc(m.genres[0])}` : ''}</span>
-        </li>`).join('')
-    : '<li class="empty" role="option" aria-disabled="true">No movies found</li>';
-  suggestionsEl.hidden = false;
-  searchInput.setAttribute('aria-expanded', 'true');
-  updateActive();
-}
+function attachSearch(input, list) {
+  let active = -1;
+  let results = [];
 
-function updateActive() {
-  suggestionsEl.querySelectorAll('li[data-id]').forEach((li, i) => {
-    li.setAttribute('aria-selected', String(i === activeIndex));
-    if (i === activeIndex) li.scrollIntoView({ block: 'nearest' });
+  function close() {
+    list.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+  }
+
+  function paintActive() {
+    list.querySelectorAll('li[data-id]').forEach((li, i) => {
+      li.setAttribute('aria-selected', String(i === active));
+      if (i === active) li.scrollIntoView({ block: 'nearest' });
+    });
+    if (active >= 0) input.setAttribute('aria-activedescendant', `${list.id}-${active}`);
+  }
+
+  function open() {
+    const query = input.value;
+    if (!query.trim()) { close(); return; }
+    results = search(query);
+    active = results.length ? 0 : -1;
+    list.innerHTML = results.length
+      ? results.map((m, i) => `
+          <li id="${list.id}-${i}" role="option" data-id="${m.id}">
+            <span class="s-title">${highlight(m.title, query)}</span>
+            <span class="s-meta">${m.year || ''}</span>
+          </li>`).join('')
+      : '<li class="empty" role="option" aria-disabled="true">Nothing in the index by that name</li>';
+    list.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    paintActive();
+  }
+
+  function choose(m) {
+    input.value = '';
+    close();
+    input.blur();
+    location.hash = `#/movie/${m.id}`;
+  }
+
+  input.addEventListener('input', open);
+  input.addEventListener('focus', open);
+  input.addEventListener('blur', () => setTimeout(close, 120));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' && results.length) {
+      e.preventDefault();
+      active = (active + 1) % results.length;
+      paintActive();
+    } else if (e.key === 'ArrowUp' && results.length) {
+      e.preventDefault();
+      active = (active - 1 + results.length) % results.length;
+      paintActive();
+    } else if (e.key === 'Enter' && active >= 0) {
+      e.preventDefault();
+      choose(results[active]);
+    } else if (e.key === 'Escape') {
+      close();
+    }
   });
-  if (activeIndex >= 0) searchInput.setAttribute('aria-activedescendant', `sugg-${activeIndex}`);
-  else searchInput.removeAttribute('aria-activedescendant');
+  list.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('li[data-id]');
+    if (!li) return;
+    e.preventDefault();
+    choose(state.byId.get(Number(li.dataset.id)));
+  });
+
+  return { input, close };
 }
 
-function closeSuggestions() {
-  suggestionsEl.hidden = true;
-  searchInput.setAttribute('aria-expanded', 'false');
-  searchInput.removeAttribute('aria-activedescendant');
-}
+const topSearch = attachSearch(document.getElementById('search-top'), document.getElementById('suggestions-top'));
 
-function choose(m) {
-  searchInput.value = '';
-  closeSuggestions();
-  searchInput.blur();
-  location.hash = `#/movie/${m.id}`;
-}
-
-searchInput.addEventListener('input', renderSuggestions);
-searchInput.addEventListener('focus', () => { if (searchInput.value.trim()) renderSuggestions(); });
-searchInput.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowDown' && currentResults.length) {
-    e.preventDefault();
-    activeIndex = (activeIndex + 1) % currentResults.length;
-    updateActive();
-  } else if (e.key === 'ArrowUp' && currentResults.length) {
-    e.preventDefault();
-    activeIndex = (activeIndex - 1 + currentResults.length) % currentResults.length;
-    updateActive();
-  } else if (e.key === 'Enter' && activeIndex >= 0) {
-    e.preventDefault();
-    choose(currentResults[activeIndex]);
-  } else if (e.key === 'Escape') {
-    closeSuggestions();
-  }
-});
-suggestionsEl.addEventListener('mousedown', (e) => {
-  const li = e.target.closest('li[data-id]');
-  if (!li) return;
-  e.preventDefault();
-  choose(state.byId.get(Number(li.dataset.id)));
-});
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.search')) closeSuggestions();
-});
 document.addEventListener('keydown', (e) => {
-  if (e.key === '/' && document.activeElement !== searchInput) {
-    e.preventDefault();
-    searchInput.focus();
-  }
+  if (e.key !== '/' || /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  e.preventDefault();
+  const onHome = document.body.classList.contains('is-home');
+  (onHome && heroSearch ? heroSearch.input : topSearch.input).focus();
 });
 
 // ---------- boot ----------
 async function init() {
   readPosterCache();
+  // Probe the poster function once (Avatar) so the layout knows up front whether posters exist.
+  const probe = Promise.race([
+    Promise.resolve(fetchImages(19995)).then((img) => {
+      if (img && img.poster) document.body.classList.add('has-posters');
+    }),
+    new Promise((resolve) => { setTimeout(resolve, 2500); }),
+  ]);
   try {
     const res = await fetch('data/movies.json');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -375,11 +435,12 @@ async function init() {
     }
     state.genres = [...genres].sort();
   } catch (err) {
-    app.innerHTML = `<div class="error">Couldn't load movie data (${esc(err.message)}).<br>
-      Run <code>python model/build_recommendations.py</code> to generate web/data/movies.json.</div>`;
+    app.innerHTML = `<p class="status">Couldn't load the film index (${esc(err.message)}).
+      Run python model/build_recommendations.py to generate web/data/movies.json.</p>`;
     return;
   }
-  searchInput.disabled = false;
+  await probe;
+  topSearch.input.disabled = false;
   window.addEventListener('hashchange', route);
   route();
 }
