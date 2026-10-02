@@ -3,35 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CineMatch — Movie Recommender</title>
-  <meta name="description" content="Find a movie you love and get recommendations for similar films, based on plot, genres, keywords, cast and director.">
-  <meta name="theme-color" content="#0d0f14">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+  <title>Double Feature</title>
+  <meta name="description" content="Name a film you love and get the films closest to it in plot, genre, keywords, cast and director.">
+  <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23c8361f'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-style='italic' font-size='20' fill='%23f4f1ea' text-anchor='middle'%3EDF%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="#/" aria-label="CineMatch home">
-        <span class="brand-mark" aria-hidden="true">▶</span>
-        <span>Cine<strong>Match</strong></span>
-      </a>
-      <div class="search" role="search">
-        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
-        <input id="search" type="search" placeholder="Search a movie you like…" autocomplete="off"
-               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggestions" disabled>
-        <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
+<body class="is-home">
+  <header class="masthead">
+    <div class="wrap masthead-row">
+      <a class="logo" href="#/">Double <em>Feature</em></a>
+      <div class="search search--compact" role="search">
+        <input id="search-top" type="search" placeholder="Find a film…" autocomplete="off" aria-label="Find a film"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggestions-top" disabled>
+        <ul id="suggestions-top" class="suggestions" role="listbox" hidden></ul>
       </div>
     </div>
   </header>
 
-  <main id="app" class="container" aria-live="polite">
-    <div class="loading"><span class="spinner" aria-hidden="true"></span> Loading movies…</div>
+  <main id="app" class="wrap">
+    <p class="status">Loading the index…</p>
   </main>
 
-  <footer class="footer container">
-    <p>Content-based recommendations from the TMDB 5000 dataset: plot, genres, keywords, cast and director, compared with cosine similarity.</p>
-    <p class="tmdb-credit">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+  <footer class="wrap colophon">
+    <p>Recommendations are content-based: each film is reduced to the words in its overview, its genres,
+       keywords, lead cast and director, and compared with every other film by cosine similarity.
+       Data from the TMDB 5000 dataset.</p>
+    <p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
   </footer>
 
   <script src="app.js" defer></script>
