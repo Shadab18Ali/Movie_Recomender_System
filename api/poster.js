@@ -23,8 +23,10 @@ module.exports = async (req, res) => {
 
   const key = process.env.TMDB_API_KEY;
   if (!key) {
-    // Cached briefly so a missing key doesn't cost one function call per poster.
-    res.setHeader('Cache-Control', 'public, s-maxage=300');
+    // Never cached: once TMDB_API_KEY is added and the site redeployed, posters
+    // must start working immediately rather than after a CDN cache expires.
+    // (The client sends only one probe request per page view in this state.)
+    res.setHeader('Cache-Control', 'no-store');
     res.status(200).json({ configured: false, poster: null, backdrop: null });
     return;
   }
