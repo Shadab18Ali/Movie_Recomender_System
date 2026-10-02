@@ -1,0 +1,6 @@
+# Only web/ (static site) and api/ (poster function) are needed on Vercel
+*.csv
+*.ipynb
+model/
+requirements.txt
+README.md

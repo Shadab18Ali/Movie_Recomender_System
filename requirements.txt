@@ -1,0 +1,5 @@
+# For the notebook and model/build_recommendations.py (not needed by the Vercel deployment)
+numpy
+pandas
+scikit-learn
+nltk

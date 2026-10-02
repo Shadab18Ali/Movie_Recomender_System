@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CineMatch — Movie Recommender</title>
+  <meta name="description" content="Find a movie you love and get recommendations for similar films, based on plot, genres, keywords, cast and director.">
+  <meta name="theme-color" content="#0d0f14">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#/" aria-label="CineMatch home">
+        <span class="brand-mark" aria-hidden="true">▶</span>
+        <span>Cine<strong>Match</strong></span>
+      </a>
+      <div class="search" role="search">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+        <input id="search" type="search" placeholder="Search a movie you like…" autocomplete="off"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggestions" disabled>
+        <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
+      </div>
+    </div>
+  </header>
+
+  <main id="app" class="container" aria-live="polite">
+    <div class="loading"><span class="spinner" aria-hidden="true"></span> Loading movies…</div>
+  </main>
+
+  <footer class="footer container">
+    <p>Content-based recommendations from the TMDB 5000 dataset: plot, genres, keywords, cast and director, compared with cosine similarity.</p>
+    <p class="tmdb-credit">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
