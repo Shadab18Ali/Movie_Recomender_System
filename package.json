@@ -1,0 +1,26 @@
+{
+  "name": "double-feature",
+  "private": true,
+  "description": "Double Feature — content-based movie recommendations (static site + Vercel function)",
+  "scripts": {
+    "dev": "node scripts/serve.mjs 3000",
+    "build:data": "python3 model/build_recommendations.py",
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json",
+    "test": "node --test \"tests/*.test.mjs\"",
+    "test:py": "python3 -m pytest -q tests",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:py"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "axe-core": "^4.13.0",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
+    "playwright": "^1.56.1",
+    "typescript": "^5.7.2"
+  }
+}

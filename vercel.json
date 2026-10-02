@@ -1,13 +1,36 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "",
-  "buildCommand": "",
+  "installCommand": "echo 'Static site: nothing to install'",
+  "buildCommand": "echo 'Data is prebuilt by model/build_recommendations.py'",
   "outputDirectory": "web",
+  "rewrites": [
+    { "source": "/film/:path*", "destination": "/index.html" },
+    { "source": "/genre/:path*", "destination": "/index.html" },
+    { "source": "/search", "destination": "/index.html" }
+  ],
   "headers": [
     {
-      "source": "/data/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }]
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://image.tmdb.org; connect-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'" }
+      ]
+    },
+    {
+      "source": "/data/index.json",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
+    },
+    {
+      "source": "/data/film/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }]
+    },
+    {
+      "source": "/(og.png|apple-touch-icon.png|favicon.svg)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
     }
   ]
 }

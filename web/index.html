@@ -1,41 +1,154 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-js" data-route="home">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Double Feature</title>
-  <meta name="description" content="Name a film you love and get the films closest to it in plot, genre, keywords, cast and director.">
-  <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23c8361f'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-style='italic' font-size='20' fill='%23f4f1ea' text-anchor='middle'%3EDF%3C/text%3E%3C/svg%3E">
+  <title>Double Feature — Movie Recommendation System</title>
+  <meta name="description" content="Name a film you love and Double Feature recommends the 12 most similar films by story, genre, themes, cast and director. Free content-based movie recommendations across 4,800 films.">
+  <link rel="canonical" href="https://movierecomendersystem.vercel.app/">
+  <meta name="theme-color" content="#0e0d0b">
+  <meta name="color-scheme" content="dark">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Double Feature">
+  <meta property="og:title" content="Double Feature — Movie Recommendation System">
+  <meta property="og:description" content="Name a film you love and get the 12 most similar films by story, genre, themes, cast and director.">
+  <meta property="og:url" content="https://movierecomendersystem.vercel.app/">
+  <meta property="og:image" content="https://movierecomendersystem.vercel.app/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Double Feature: name a film you love and find what to watch next.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Double Feature — Movie Recommendation System">
+  <meta name="twitter:description" content="Name a film you love and get the 12 most similar films by story, genre, themes, cast and director.">
+  <meta name="twitter:image" content="https://movierecomendersystem.vercel.app/og.png">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <!-- The film index is needed by every view: start downloading it in parallel with the scripts. -->
+  <link rel="preload" href="/data/index.json" as="fetch" type="application/json" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/js/boot.js"></script>
+  <script type="module" src="/js/app.js"></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Double Feature",
+    "alternateName": "Double Feature — Movie Recommendation System",
+    "url": "https://movierecomendersystem.vercel.app/",
+    "description": "Content-based movie recommendations: name a film you love and get the 12 most similar films.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://movierecomendersystem.vercel.app/search?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
 </head>
-<body class="is-home">
-  <header class="masthead">
-    <div class="wrap masthead-row">
-      <a class="logo" href="#/">Double <em>Feature</em></a>
-      <div class="search search--compact" role="search">
-        <input id="search-top" type="search" placeholder="Find a film…" autocomplete="off" aria-label="Find a film"
-               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggestions-top" disabled>
-        <ul id="suggestions-top" class="suggestions" role="listbox" hidden></ul>
-      </div>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="logo" href="/">
+        <svg class="logo-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect x="2" y="6" width="12" height="20" rx="2"/><rect x="18" y="6" width="12" height="20" rx="2"/></svg>
+        <span>Double <em>Feature</em></span>
+      </a>
+      <form class="search search--compact" role="search" action="/search" method="get" data-search>
+        <label class="sr-only" for="q-top">Search films</label>
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+        <input id="q-top" name="q" type="text" inputmode="search" enterkeyhint="search" placeholder="Search films" autocomplete="off" spellcheck="false" maxlength="200"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="q-top-list">
+        <button class="search-clear" type="button" aria-label="Clear search" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18.3 5.71 12 12.01 5.7 5.71 4.29 7.12 10.59 13.4l-6.3 6.3 1.41 1.41L12 14.83l6.29 6.29 1.42-1.41-6.3-6.3 6.3-6.29z"/></svg>
+        </button>
+        <ul id="q-top-list" class="suggestions" role="listbox" aria-label="Film suggestions" hidden></ul>
+      </form>
     </div>
   </header>
 
-  <main id="app" class="wrap">
-    <p class="status">Loading the index…</p>
+  <main id="main">
+    <section id="hero" class="hero" aria-labelledby="hero-title">
+      <div class="wrap">
+        <p class="eyebrow">Movie recommendations</p>
+        <h1 id="hero-title" class="hero-title">Name a film you <em>love</em>.</h1>
+        <p class="lede">Double Feature finds the 12 films closest to it&nbsp;— by story, genre, themes, cast and director&nbsp;— from a collection of 4,800 titles.</p>
+
+        <form class="search search--hero" role="search" action="/search" method="get" data-search>
+          <label class="sr-only" for="q-hero">Search for a film you love</label>
+          <div class="search-field">
+            <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+            <input id="q-hero" name="q" type="text" inputmode="search" enterkeyhint="search" placeholder="Search a film you love" autocomplete="off" spellcheck="false" maxlength="200"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="q-hero-list">
+            <button class="search-clear" type="button" aria-label="Clear search" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18.3 5.71 12 12.01 5.7 5.71 4.29 7.12 10.59 13.4l-6.3 6.3 1.41 1.41L12 14.83l6.29 6.29 1.42-1.41-6.3-6.3 6.3-6.29z"/></svg>
+            </button>
+            <ul id="q-hero-list" class="suggestions" role="listbox" aria-label="Film suggestions" hidden></ul>
+          </div>
+          <button class="btn btn-primary" type="submit">Find matches</button>
+        </form>
+
+        <p class="try"><span class="try-label">Popular picks</span>
+          <a href="/film/27205-inception">Inception</a>
+          <a href="/film/109445-frozen">Frozen</a>
+          <a href="/film/155-the-dark-knight">The Dark Knight</a>
+          <a href="/film/194-amelie">Amélie</a>
+          <a href="/film/807-se7en">Se7en</a>
+          <a href="/film/129-spirited-away">Spirited Away</a>
+        </p>
+      </div>
+    </section>
+
+    <div id="view" class="wrap view">
+      <noscript>
+        <div class="notice">
+          <h2 class="notice-title">Search and recommendations need JavaScript</h2>
+          <p>Double Feature runs in your browser. Turn on JavaScript and reload the page to search the collection and see recommendations.</p>
+        </div>
+      </noscript>
+      <!-- Shown until app.js renders the real view (hidden when JavaScript is off). -->
+      <div class="static-skeleton static-skeleton--list" aria-hidden="true">
+        <div class="skeleton skeleton-heading"></div>
+        <ul class="grid">
+          <li><div class="poster skeleton"></div></li><li><div class="poster skeleton"></div></li>
+          <li><div class="poster skeleton"></div></li><li><div class="poster skeleton"></div></li>
+          <li><div class="poster skeleton"></div></li><li><div class="poster skeleton"></div></li>
+        </ul>
+      </div>
+      <div class="static-skeleton static-skeleton--film" aria-hidden="true">
+        <div class="film-hero film-hero--skeleton">
+          <div class="poster skeleton"></div>
+          <div>
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-line skeleton-line--short"></div>
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
-  <footer class="wrap colophon">
-    <p>Recommendations are content-based: each film is reduced to the words in its overview, its genres,
-       keywords, lead cast and director, and compared with every other film by cosine similarity.
-       Data from the TMDB 5000 dataset.</p>
-    <p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
-  </footer>
+  <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
-  <script src="app.js" defer></script>
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div>
+        <p class="footer-brand">Double <em>Feature</em></p>
+        <p>Content-based recommendations: every film is described by its overview, genres, keywords, lead cast and director, and compared with every other film using cosine similarity.</p>
+      </div>
+      <div class="footer-credits">
+        <p>Film data from the <a href="https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata" rel="noopener">TMDB 5000 Movie Dataset</a>. Posters from <a href="https://www.themoviedb.org/" rel="noopener">The Movie Database (TMDB)</a>.</p>
+        <p class="tmdb-notice">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+      </div>
+    </div>
+  </footer>
 </body>
 </html>
